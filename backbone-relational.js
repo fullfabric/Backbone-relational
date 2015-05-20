@@ -1,6 +1,6 @@
 /* vim: set tabstop=4 softtabstop=4 shiftwidth=4 noexpandtab: */
 /**
- * Backbone-relational.js 0.9.0
+ * Backbone-relational.js 0.9.0.patchff-1
  * (c) 2011-2014 Paul Uithol and contributors (https://github.com/PaulUithol/Backbone-relational/graphs/contributors)
  *
  * Backbone-relational may be freely distributed under the MIT license; see the accompanying LICENSE.txt.
@@ -166,7 +166,7 @@
 	 * Handles lookup for relations.
 	 */
 	Backbone.Store = function() {
-		this._collections = [];
+		this._collectionsMap = {};
 		this._reverseRelations = [];
 		this._orphanRelations = [];
 		this._subModels = [];
@@ -346,9 +346,7 @@
 				rootModel = rootModel._superModel;
 			}
 
-			var coll = _.find( this._collections, function( item ) {
-				return item.model === rootModel;
-			});
+      var coll = this._collectionsMap[rootModel];
 
 			if ( !coll && create !== false ) {
 				coll = this._createCollection( rootModel );
@@ -392,7 +390,11 @@
 				coll = new Backbone.Collection();
 				coll.model = type;
 
-				this._collections.push( coll );
+        if ( !this._collectionsMap[coll.model] ) {
+          this._collectionsMap[coll.model] = new Backbone.Collection();
+        }
+
+        this._collectionsMap[coll.model].push( coll );
 			}
 
 			return coll;
@@ -526,7 +528,7 @@
 
 			// If we've unregistered an entire store collection, reset the collection (which is much faster).
 			// Otherwise, remove each model one by one.
-			if ( _.contains( this._collections, type ) ) {
+			if ( _.contains( _.values( this._collectionsMap ), type ) ) {
 				coll.reset( [] );
 			}
 			else {
@@ -549,11 +551,11 @@
 			this.stopListening();
 
 			// Unregister each collection to remove event listeners
-			_.each( this._collections, function( coll ) {
+			_.each( _.values( this.collectionsMap ), function( coll ) {
 				this.unregister( coll );
 			}, this );
 
-			this._collections = [];
+			this._collectionsMap = {};
 			this._subModels = [];
 			this._modelScopes = [ exports ];
 		}
@@ -1460,7 +1462,7 @@
 								_.each( createdModels, function( model ) {
 									model.trigger( 'destroy', model, model.collection, options );
 								});
-								
+
 								options.error && options.error.apply( models, arguments );
 							},
 							url: setUrl
@@ -1499,7 +1501,7 @@
 				}
 			);
 		},
-		
+
 		deferArray: function(deferArray) {
 			return Backbone.$.when.apply(null, deferArray);
 		},
